@@ -3,8 +3,8 @@ lib := libfs.a
 objs := disk.o fs.o
 CC := gcc
 CC_Lib := ar rcs
-CFLAGS := -Wall
-##CFLAGS += -g -Werror
+CFLAGS := -Wall ##-Werror
+CFLAGS += -g
 
 ifneq ($(V),1)
 	Q = @
