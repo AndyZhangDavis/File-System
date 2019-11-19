@@ -71,21 +71,64 @@ int fs_mount(const char *diskname)
 			return -1;
 	}
 
-	/* TODO: Phase 1 */
 	return 0;
 }
 
 int fs_umount(void)
 {
-	/* TODO: Phase 1 */
+	if (block_write(0, super_block) == -1)
+		return -1;
+
+	if (block_write(super_block->rootBlock, root_dir) == -1)
+		return -1;
+
+	int i = 0;
+	for (i = 0; i < super_block->numFatBlocks; ++i)
+	{
+		if (block_write(i + 1, Fat + (BLOCK_SIZE * i)) == -1)
+			return -1;
+	}
+
+	free(super_block);
+	free(root_dir);
+	free(Fat);
+
+	if (block_disk_close() == -1)
+		return -1;
+
 	return 0;
 }
 
 int fs_info(void)
 {
+	if(super_block == NULL)
+		return -1;
+
+	int i = 0;
+	int usedFat = super_block->numDataBlocks;
+	for (i = 0; i < super_block->numDataBlocks; ++i)
+	{
+		if (Fat[i] != 0)
+			usedFat--;
+	}
+
+	i = 0;
+	int freeFiles = 128;
+	for (i = 0; i < 128; ++i)
+	{
+		if(root_dir[i].size != 0)
+			freeFiles--;
+	}
+
 	printf("FS Info:\n");
 	printf("total_blk_count=%d\n", super_block->totBlocks);
-	/* TODO: Phase 1 */
+	printf("fat_blk_count=%d\n", super_block->numFatBlocks);
+	printf("rdir_blk=%d\n", super_block->rootBlock);
+	printf("data_blk=%d\n", super_block->startBlock);
+	printf("data_blk_count=%d\n", super_block->numDataBlocks);
+	printf("fat_free_ratio=%d/%d\n", usedFat, super_block->numDataBlocks);
+	printf("rdir_free_ratio=%d/128\n", freeFiles);
+
 	return 0;
 }
 
