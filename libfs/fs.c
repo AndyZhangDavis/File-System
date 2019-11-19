@@ -31,12 +31,12 @@ typedef struct __attribute__((__packed__)) rootDirectory {
 
 Super super_block;
 Root root_dir;
-//uint16_t* Fat;
+uint16_t* Fat;
 
 int fs_mount(const char *diskname)
 {
 	super_block = (Super)malloc(sizeof(struct superBlock));
-	root_dir = (Root)malloc(sizeof(struct rootDirectory));
+	root_dir = (Root)malloc(sizeof(int8_t) * BLOCK_SIZE);
 
 	if (block_disk_open(diskname) == -1)
 		return -1;
@@ -62,20 +62,17 @@ int fs_mount(const char *diskname)
 
 	if (block_read(super_block->rootBlock, root_dir) == -1)
 		return -1;
-	
-	//printf("%d\n", super_block->numFatBlocks);
 
-	/*Fat = (uint16_t*)malloc(super_block->numFatBlocks * sizeof(uint16_t) * BLOCK_SIZE);
+	Fat = (uint16_t*)malloc(sizeof(uint16_t) * BLOCK_SIZE * super_block->numFatBlocks);
 	int i = 0;
 	for (i = 0; i < super_block->numFatBlocks; ++i)
 	{
-		printf("In read\n");
 		if (block_read(i + 1, Fat + (BLOCK_SIZE * i)) == -1)
 			return -1;
-	}*/
+	}
 
 	/* TODO: Phase 1 */
-	return -1;
+	return 0;
 }
 
 int fs_umount(void)
@@ -86,6 +83,8 @@ int fs_umount(void)
 
 int fs_info(void)
 {
+	printf("FS Info:\n");
+	printf("total_blk_count=%d\n", super_block->totBlocks);
 	/* TODO: Phase 1 */
 	return 0;
 }
