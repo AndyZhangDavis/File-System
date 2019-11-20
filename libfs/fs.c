@@ -285,6 +285,17 @@ int fs_stat(int fd)
 
 int fs_lseek(int fd, size_t offset)
 {
+	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
+		return -1;
+
+	if (open_files[fd].fileDescript.firstIndex == 0)
+		return -1;
+
+	if (offset > open_files[fd].fileDescript.size)
+		return -1;
+
+	open_files[fd].offset = offset;
+
 	/* TODO: Phase 3 */
 	return 0;
 }
