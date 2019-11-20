@@ -25,13 +25,14 @@ typedef struct __attribute__((__packed__)) superBlock {
 typedef struct __attribute__((__packed__)) rootDirectory {
 	int8_t fileName[16];
 	int32_t size;
-	int16_t firstIndex;	//Index of first data block
+	uint16_t firstIndex;	//Index of first data block
 	int8_t padding[10];
 } *Root;
 
 Super super_block;
 Root root_dir;
 uint16_t* Fat;
+int NumFiles;
 
 int fs_mount(const char *diskname)
 {
@@ -52,12 +53,6 @@ int fs_mount(const char *diskname)
 	{
 		printf("%s, %s\n", sig, FILE_SIG);
 		return -1;
-	}
-
-	if (block_disk_count() != super_block->totBlocks)
-	{
-		printf("%d, %d\n", block_disk_count(), super_block->totBlocks);
-		return -1; 
 	}
 
 	if (block_read(super_block->rootBlock, root_dir) == -1)
@@ -116,7 +111,8 @@ int fs_info(void)
 	int freeFiles = 128;
 	for (i = 0; i < 128; ++i)
 	{
-		if(root_dir[i].size != 0)
+		/* TODO potentially, might be wrong */
+		if(root_dir[i].firstIndex != 0)
 			freeFiles--;
 	}
 
@@ -134,19 +130,84 @@ int fs_info(void)
 
 int fs_create(const char *filename)
 {
+	int i = 0;
+
+	if (filename == NULL || strlen(filename) > FS_FILENAME_LEN)
+		return -1;
+
+	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
+	{
+		if(strcmp((char*)root_dir[i].fileName, filename) == 0)
+			return -1;
+	}
+
+	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
+	{
+		if (root_dir[i].firstIndex == 0)
+		{
+			memset(&(root_dir[i]), 0, FS_OPEN_MAX_COUNT);
+			strcpy((char*)root_dir[i].fileName, filename);
+			root_dir[i].size = 0;
+			root_dir[i].firstIndex = FAT_EOC;
+			break;
+		}
+	}
+
+	if (i == FS_FILE_MAX_COUNT)
+		return -1;
+
 	/* TODO: Phase 2 */
 	return 0;
 }
 
 int fs_delete(const char *filename)
 {
+	if (filename == NULL)
+		return -1;
+
+	int i = 0;
+	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
+	{
+		if(strcmp((char*)root_dir[i].fileName, filename) == 0)
+			break;
+	}
+
+	if (i == FS_FILE_MAX_COUNT)
+		return -1;
+
+	uint16_t index = root_dir[i].firstIndex, tempIndex;
+	
+	while (index != FAT_EOC)
+	{
+		tempIndex = Fat[index];
+		Fat[index] = 0;
+		index = tempIndex;
+	}
+
+	memset(&(root_dir[i]), 0, FS_OPEN_MAX_COUNT);
+
 	/* TODO: Phase 2 */
 	return 0;
 }
 
 int fs_ls(void)
 {
-	/* TODO: Phase 2 */
+	if (super_block == NULL)
+		return -1;
+
+	printf("FS Ls:\n");
+
+	int i = 0;
+	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
+	{
+		if(root_dir[i].fileName[0] != '\0')
+		{
+			printf("file: %s, ", (char*)root_dir[i].fileName);
+			printf("size: %d, ", root_dir[i].size);
+			printf("data_blk: %u\n", root_dir[i].firstIndex);
+		}
+	}
+
 	return 0;
 }
 
