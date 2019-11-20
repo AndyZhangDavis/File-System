@@ -29,15 +29,22 @@ typedef struct __attribute__((__packed__)) rootDirectory {
 	int8_t padding[10];
 } *Root;
 
+typedef struct fd {
+	struct rootDirectory fileDescript;
+	int offset;
+} *Fd;
+
 Super super_block;
 Root root_dir;
+Fd open_files;
 uint16_t* Fat;
-int NumFiles;
+int num_open_files;
 
 int fs_mount(const char *diskname)
 {
 	super_block = (Super)malloc(sizeof(struct superBlock));
 	root_dir = (Root)malloc(sizeof(int8_t) * BLOCK_SIZE);
+	open_files = (Fd)malloc(sizeof(struct fd) * FS_OPEN_MAX_COUNT);
 
 	if (block_disk_open(diskname) == -1)
 		return -1;
@@ -143,6 +150,7 @@ int fs_create(const char *filename)
 
 	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
 	{
+		/* TODO potentially, might be wrong */
 		if (root_dir[i].firstIndex == 0)
 		{
 			memset(&(root_dir[i]), 0, FS_OPEN_MAX_COUNT);
@@ -156,7 +164,6 @@ int fs_create(const char *filename)
 	if (i == FS_FILE_MAX_COUNT)
 		return -1;
 
-	/* TODO: Phase 2 */
 	return 0;
 }
 
@@ -184,9 +191,9 @@ int fs_delete(const char *filename)
 		index = tempIndex;
 	}
 
+	root_dir[i].fileName[0] = '\0';
 	memset(&(root_dir[i]), 0, FS_OPEN_MAX_COUNT);
 
-	/* TODO: Phase 2 */
 	return 0;
 }
 
@@ -213,20 +220,67 @@ int fs_ls(void)
 
 int fs_open(const char *filename)
 {
+	if (filename == NULL)
+		return -1;
+
+	int fileIndex = 0;
+	for (fileIndex = 0; fileIndex < FS_FILE_MAX_COUNT; ++fileIndex)
+	{
+		if(strcmp((char*)root_dir[fileIndex].fileName, filename) == 0)
+			break;
+	}
+
+	if (fileIndex == FS_FILE_MAX_COUNT)
+		return -1;
+
+	if (num_open_files >= FS_OPEN_MAX_COUNT)
+		return -1;
+
+	int openIndex = 0;
+	for (openIndex = 0; openIndex < FS_OPEN_MAX_COUNT; ++openIndex)
+	{
+		if (open_files[openIndex].fileDescript.firstIndex == 0)
+		{
+			open_files[openIndex].fileDescript = root_dir[fileIndex];
+			open_files[openIndex].offset = 0;
+			break;
+		}
+	}
+
+	num_open_files++;
+
 	/* TODO: Phase 3 */
-	return 0;
+	return openIndex;
 }
 
 int fs_close(int fd)
 {
+	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
+		return -1;
+
+	if (open_files[fd].fileDescript.firstIndex == 0)
+		return -1;
+
+	memset(&(open_files[fd]), 0, sizeof(struct fd));
+
+	num_open_files--;
+	
 	/* TODO: Phase 3 */
 	return 0;
 }
 
 int fs_stat(int fd)
 {
+	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
+		return -1;
+
+	if (open_files[fd].fileDescript.firstIndex == 0)
+		return -1;
+
+	int size = open_files[fd].fileDescript.size;
+
 	/* TODO: Phase 3 */
-	return 0;
+	return size;
 }
 
 int fs_lseek(int fd, size_t offset)
