@@ -41,6 +41,17 @@ Fd open_files;
 uint16_t* Fat;
 int num_open_files;
 
+int get_valid_fd(int fd)
+{
+	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
+		return 0;
+
+	if (open_files[fd].fileDescript.firstIndex == 0)
+		return 0;
+
+	return 1;
+}
+
 int fs_mount(const char *diskname)
 {
 	super_block = (Super)malloc(sizeof(struct superBlock));
@@ -263,10 +274,7 @@ int fs_open(const char *filename)
 
 int fs_close(int fd)
 {
-	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
-		return -1;
-
-	if (open_files[fd].fileDescript.firstIndex == 0)
+	if (!get_valid_fd(fd))
 		return -1;
 
 	memset(&(open_files[fd]), 0, sizeof(struct fd));
@@ -279,10 +287,7 @@ int fs_close(int fd)
 
 int fs_stat(int fd)
 {
-	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
-		return -1;
-
-	if (open_files[fd].fileDescript.firstIndex == 0)
+	if (!get_valid_fd(fd))
 		return -1;
 
 	int size = open_files[fd].fileDescript.size;
@@ -293,10 +298,7 @@ int fs_stat(int fd)
 
 int fs_lseek(int fd, size_t offset)
 {
-	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
-		return -1;
-
-	if (open_files[fd].fileDescript.firstIndex == 0)
+	if (!get_valid_fd(fd))
 		return -1;
 
 	if (offset > open_files[fd].fileDescript.size)
@@ -310,31 +312,54 @@ int fs_lseek(int fd, size_t offset)
 
 int fs_write(int fd, void *buf, size_t count)
 {
+	if (!get_valid_fd(fd))
+		return -1;
+
+	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
+
+	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
+	int blockIndex = open_files[fd].fileDescript.firstIndex;
+	int blockOffset = open_files[fd].offset;
+	
+	while (blockOffset > BLOCK_SIZE)
+	{
+		blockIndex = Fat[blockIndex];
+		blockOffset -= BLOCK_SIZE;
+	}
+
+	blockIndex += super_block->startBlock;
+
+	memcpy(bounce + blockOffset, buf, count);
+
 	/* TODO: Phase 4 */
 	return 0;
 }
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
-		return -1;
-
-	if (open_files[fd].fileDescript.firstIndex == 0)
+	if (!get_valid_fd(fd))
 		return -1;
 
 	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);
 
 	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
-	int blockIndex = open_files[fd].fileDescript.firstIndex + super_block->startBlock;;
+	int blockIndex = open_files[fd].fileDescript.firstIndex;
 	int blockOffset = open_files[fd].offset;
 
+	while (blockOffset > BLOCK_SIZE)
+	{
+		blockIndex = Fat[blockIndex];
+		blockOffset -= BLOCK_SIZE; 
+	}
+	
+	blockIndex += super_block->startBlock;
 	block_read(blockIndex, bounce);
 
 	int i = 0;
 	for (i = 1; i < numBlocks; ++i)
 	{
 		blockIndex = Fat[blockIndex];
-		block_read(blockIndex, bounce + BLOCK_SIZE * i);
+		block_read(blockIndex + super_block->startBlock, bounce + BLOCK_SIZE * i);
 	}
 
 	memcpy(buf, bounce + blockOffset, count);
