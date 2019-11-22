@@ -52,6 +52,18 @@ int get_valid_fd(int fd)
 	return 1;
 }
 
+int find_empty_fat()
+{
+	int i = 0;
+
+	for (i = 0; i < super_block->numDataBlocks; ++i)
+	{
+		if (Fat[i] == 0)
+			break;
+	}
+	return i;
+}
+
 int fs_mount(const char *diskname)
 {
 	super_block = (Super)malloc(sizeof(struct superBlock));
@@ -318,21 +330,36 @@ int fs_write(int fd, void *buf, size_t count)
 	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
 
 	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
-	int blockIndex = open_files[fd].fileDescript.firstIndex;
+	size_t blockIndex = open_files[fd].fileDescript.firstIndex;
 	int blockOffset = open_files[fd].offset;
 	
-	while (blockOffset > BLOCK_SIZE)
+	if (blockIndex == 0xFFFF)
 	{
-		blockIndex = Fat[blockIndex];
-		blockOffset -= BLOCK_SIZE;
+		blockIndex = find_empty_fat();
+		open_files[fd].fileDescript.firstIndex = blockIndex;
+		Fat[blockIndex] = FAT_EOC;
+	}
+
+	else
+	{
+		while (blockOffset > BLOCK_SIZE)
+		{
+			blockIndex = Fat[blockIndex];
+			blockOffset -= BLOCK_SIZE;
+		}
 	}
 
 	blockIndex += super_block->startBlock;
 
 	memcpy(bounce + blockOffset, buf, count);
 
+	block_write(blockIndex, bounce);
+
+	open_files[fd].fileDescript.size = count;
+	open_files[fd].offset;
+
 	/* TODO: Phase 4 */
-	return 0;
+	return count;
 }
 
 int fs_read(int fd, void *buf, size_t count)
@@ -358,6 +385,7 @@ int fs_read(int fd, void *buf, size_t count)
 	int i = 0;
 	for (i = 1; i < numBlocks; ++i)
 	{
+		printf("Hi\n");
 		blockIndex = Fat[blockIndex];
 		block_read(blockIndex + super_block->startBlock, bounce + BLOCK_SIZE * i);
 	}
