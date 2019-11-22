@@ -10,6 +10,7 @@
 #define FILE_SIG "ECS150FS\0"
 #define BLOCK_SIZE 4096
 #define FAT_EOC 0xFFFF
+#define DIV_ROUND_UP(n, d)    (((n) + (d) - 1) / (d))
 
 /* TODO: Phase 1 */
 typedef struct __attribute__((__packed__)) superBlock {
@@ -54,7 +55,7 @@ int fs_mount(const char *diskname)
 
 	char sig[20];
 	strcpy(sig, (char*)super_block->signature);
-	sig[strlen(sig) - 3] = '\0';
+	sig[8] = '\0';
 
 	if (strcmp(sig, FILE_SIG) != 0)
 	{
@@ -171,6 +172,13 @@ int fs_delete(const char *filename)
 {
 	if (filename == NULL)
 		return -1;
+
+	int fileIndex = 0;
+	for (fileIndex = 0; fileIndex < FS_OPEN_MAX_COUNT; ++fileIndex)
+	{
+		if (strcmp((char*)open_files[fileIndex].fileDescript.fileName, filename) == 0)
+			return -1;
+	}
 
 	int i = 0;
 	for (i = 0; i < FS_FILE_MAX_COUNT; ++i)
@@ -308,7 +316,30 @@ int fs_write(int fd, void *buf, size_t count)
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	return 0;
+	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
+		return -1;
+
+	if (open_files[fd].fileDescript.firstIndex == 0)
+		return -1;
+
+	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);
+
+	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
+	int blockIndex = open_files[fd].fileDescript.firstIndex + super_block->startBlock;;
+	int blockOffset = open_files[fd].offset;
+
+	block_read(blockIndex, bounce);
+
+	int i = 0;
+	for (i = 1; i < numBlocks; ++i)
+	{
+		blockIndex = Fat[blockIndex];
+		block_read(blockIndex, bounce + BLOCK_SIZE * i);
+	}
+
+	memcpy(buf, bounce + blockOffset, count);
+
+	/* TODO: Phase 4 */	
+	return strlen(buf);
 }
 
