@@ -352,7 +352,7 @@ int fs_write(int fd, void *buf, size_t count)
 	blockIndex += super_block->startBlock;
 
 	memcpy(bounce + blockOffset, buf, count);
-	//printf("%d %s", blockIndex, bounce);
+	printf("%d %s", blockIndex, bounce);
 	block_write(blockIndex, bounce);
 
 	open_files[fd].fileDescript.size = count;
@@ -377,15 +377,13 @@ int fs_read(int fd, void *buf, size_t count)
 		blockIndex = Fat[blockIndex];
 		blockOffset -= BLOCK_SIZE; 
 	}
-	
-	blockIndex += super_block->startBlock;
-	block_read(blockIndex, bounce);
+
 
 	int i = 0;
-	for (i = 1; i < numBlocks; ++i)
+	for (i = 0; i < numBlocks; ++i)
 	{
-		blockIndex = Fat[blockIndex];
 		block_read(blockIndex + super_block->startBlock, bounce + BLOCK_SIZE * i);
+		blockIndex = Fat[blockIndex];
 	}
 
 	memcpy(buf, bounce + blockOffset, count);
