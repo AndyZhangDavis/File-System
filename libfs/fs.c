@@ -337,34 +337,55 @@ int fs_write(int fd, void *buf, size_t count)
 	char* prevBlock = (char*)malloc(BLOCK_SIZE * sizeof(char));
 	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
+	int fatIndex = blockIndex;
+	int numBytesRemain = count;
+	int i = 0;
 
 	if (open_files[fd].fileDescript->size < count + open_files[fd].offset)
 	{
-		int i = 0;
 		for (i = 0; i < currBlocks; ++i)
-			blockIndex = Fat[blockIndex];
+			fatIndex = Fat[fatIndex];
 
 		for (i = currBlocks + 1; i < needBlocks; ++i)
 		{
-			Fat[blockIndex] = find_empty_fat();
-			blockIndex = Fat[blockIndex];			
+			Fat[fatIndex] = find_empty_fat();
+			fatIndex = Fat[fatIndex];		
 		}
 
-		Fat[blockIndex] = FAT_EOC;
+		Fat[fatIndex] = FAT_EOC;
 		open_files[fd].fileDescript->size = count;
 	}
 
+	/* Change write block if offset causes block switch */
 	while (blockOffset > BLOCK_SIZE)
 	{
 		blockIndex = Fat[blockIndex];
 		blockOffset -= BLOCK_SIZE;
 	}
 
-	blockIndex += super_block->startBlock;
-
-	block_read(blockIndex, prevBlock);
+	/* Read first block to memory */
+	block_read(blockIndex + super_block->startBlock, prevBlock);
 	memcpy(prevBlock + blockOffset, buf, BLOCK_SIZE - blockOffset);
-	block_write(blockIndex, prevBlock);
+	block_write(blockIndex + super_block->startBlock, prevBlock);
+	numBytesRemain -= BLOCK_SIZE;
+	numBytesRemain += blockOffset;
+
+	/* Move read location from buffer */
+	/*buf += BLOCK_SIZE - blockOffset;
+	blockIndex = Fat[blockIndex];
+
+	i = 0;
+	for (i = 0; i < needBlocks - 2; ++i)
+	{
+		block_write(blockIndex + super_block->startBlock, buf);	
+		buf += BLOCK_SIZE;
+		blockIndex = Fat[blockIndex];
+		numBytesRemain -= BLOCK_SIZE;
+	} 
+
+	block_read(blockIndex + super_block->startBlock, prevBlock);
+	memcpy(prevBlock, buf, numBytesRemain);
+	block_write(blockIndex + super_block->startBlock, prevBlock);*/
 
 	/* TODO: Phase 4 */
 	return count;
@@ -381,12 +402,14 @@ int fs_read(int fd, void *buf, size_t count)
 	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
 
+	/* Change read block if offset causes block switch */
 	while (blockOffset > BLOCK_SIZE)
 	{
 		blockIndex = Fat[blockIndex];
 		blockOffset -= BLOCK_SIZE; 
 	}
 
+	/* Read each block to a bounce buffer */
 	int i = 0;
 	for (i = 0; i < numBlocks; ++i)
 	{
@@ -394,9 +417,10 @@ int fs_read(int fd, void *buf, size_t count)
 		blockIndex = Fat[blockIndex];
 	}
 
+	/* Copy bounce buffer to output buffer */
 	memcpy(buf, bounce + blockOffset, count);
 
-	/* TODO: Phase 4 */	
+	/* Return total bytes read */
 	return strlen(buf);
 }
 
