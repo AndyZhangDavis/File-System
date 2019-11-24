@@ -330,6 +330,9 @@ int fs_write(int fd, void *buf, size_t count)
 	if (!get_valid_fd(fd))
 		return -1;
 
+	if (count == 0)
+		return 0;
+
 	int needBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
 	int currBlocks = DIV_ROUND_UP(open_files[fd].fileDescript->size, BLOCK_SIZE);
 
@@ -344,7 +347,7 @@ int fs_write(int fd, void *buf, size_t count)
 	{
 		for (i = 0; i < currBlocks; ++i)
 			fatIndex = Fat[fatIndex];
-		printf("%d %d\n", currBlocks, needBlocks);
+		//printf("%d %d\n", currBlocks, needBlocks);
 		for (i = currBlocks + 1; i < needBlocks; ++i)
 		{
 			Fat[fatIndex] = find_empty_fat();
@@ -362,7 +365,7 @@ int fs_write(int fd, void *buf, size_t count)
 		blockOffset -= BLOCK_SIZE;
 	}
 
-	/* Read first block to memory */
+	/* Read first block to memory */	
 	block_read(blockIndex + super_block->startBlock, prevBlock);
 	memcpy(prevBlock + blockOffset, buf, BLOCK_SIZE - blockOffset);
 	block_write(blockIndex + super_block->startBlock, prevBlock);
