@@ -345,7 +345,7 @@ int fs_write(int fd, void *buf, size_t count)
 	{
 		for (i = 0; i < currBlocks; ++i)
 			fatIndex = Fat[fatIndex];
-
+		printf("%d %d\n", currBlocks, needBlocks);
 		for (i = currBlocks + 1; i < needBlocks; ++i)
 		{
 			Fat[fatIndex] = find_empty_fat();
@@ -371,7 +371,7 @@ int fs_write(int fd, void *buf, size_t count)
 	numBytesRemain += blockOffset;
 
 	/* Move read location from buffer */
-	/*buf += BLOCK_SIZE - blockOffset;
+	buf += BLOCK_SIZE - blockOffset;
 	blockIndex = Fat[blockIndex];
 
 	i = 0;
@@ -383,9 +383,12 @@ int fs_write(int fd, void *buf, size_t count)
 		numBytesRemain -= BLOCK_SIZE;
 	} 
 
-	block_read(blockIndex + super_block->startBlock, prevBlock);
-	memcpy(prevBlock, buf, numBytesRemain);
-	block_write(blockIndex + super_block->startBlock, prevBlock);*/
+	if (currBlocks + 1 < needBlocks)
+	{
+		block_read(blockIndex + super_block->startBlock, prevBlock);
+		memcpy(prevBlock, buf, numBytesRemain);
+		block_write(blockIndex + super_block->startBlock, prevBlock);
+	}
 
 	/* TODO: Phase 4 */
 	return count;
