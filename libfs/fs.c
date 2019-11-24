@@ -333,7 +333,6 @@ int fs_write(int fd, void *buf, size_t count)
 	int needBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
 	int currBlocks = DIV_ROUND_UP(open_files[fd].fileDescript->size, BLOCK_SIZE);
 
-	//char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * needBlocks);
 	char* prevBlock = (char*)malloc(BLOCK_SIZE * sizeof(char));
 	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
@@ -374,6 +373,7 @@ int fs_write(int fd, void *buf, size_t count)
 	buf += BLOCK_SIZE - blockOffset;
 	blockIndex = Fat[blockIndex];
 
+	/* Write middle blocks (entire blocks) if any */
 	i = 0;
 	for (i = 0; i < needBlocks - 2; ++i)
 	{
@@ -383,6 +383,7 @@ int fs_write(int fd, void *buf, size_t count)
 		numBytesRemain -= BLOCK_SIZE;
 	} 
 
+	/* Write final block to memory */
 	if (currBlocks + 1 < needBlocks)
 	{
 		block_read(blockIndex + super_block->startBlock, prevBlock);
