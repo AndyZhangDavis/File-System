@@ -98,12 +98,14 @@ void thread_fs_cat(void *arg)
 		die("Cannot mount diskname");
 
 	fs_fd = fs_open(filename);
+	
 	if (fs_fd < 0) {
 		fs_umount();
 		die("Cannot open file");
 	}
 
 	stat = fs_stat(fs_fd);
+	
 	if (stat < 0) {
 		fs_umount();
 		die("Cannot stat file");

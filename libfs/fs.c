@@ -31,7 +31,7 @@ typedef struct __attribute__((__packed__)) rootDirectory {
 } *Root;
 
 typedef struct fd {
-	struct rootDirectory fileDescript;
+	Root fileDescript;
 	int offset;
 } *Fd;
 
@@ -45,8 +45,11 @@ int get_valid_fd(int fd)
 {
 	if (fd < 0 || fd > FS_OPEN_MAX_COUNT)
 		return 0;
+	
+	if (open_files[fd].fileDescript == NULL)
+		return 0;
 
-	if (open_files[fd].fileDescript.firstIndex == 0)
+	if (open_files[fd].fileDescript->firstIndex == 0)
 		return 0;
 
 	return 1;
@@ -180,7 +183,8 @@ int fs_create(const char *filename)
 			memset(&(root_dir[i]), 0, FS_OPEN_MAX_COUNT);
 			strcpy((char*)root_dir[i].fileName, filename);
 			root_dir[i].size = 0;
-			root_dir[i].firstIndex = FAT_EOC;
+			root_dir[i].firstIndex = find_empty_fat();
+			Fat[root_dir[i].firstIndex] = FAT_EOC;
 			break;
 		}
 	}
@@ -199,7 +203,9 @@ int fs_delete(const char *filename)
 	int fileIndex = 0;
 	for (fileIndex = 0; fileIndex < FS_OPEN_MAX_COUNT; ++fileIndex)
 	{
-		if (strcmp((char*)open_files[fileIndex].fileDescript.fileName, filename) == 0)
+		if (open_files[fileIndex].fileDescript == NULL)
+			continue;
+		else if (strcmp((char*)open_files[fileIndex].fileDescript->fileName, filename) == 0)
 			return -1;
 	}
 
@@ -270,9 +276,9 @@ int fs_open(const char *filename)
 	int openIndex = 0;
 	for (openIndex = 0; openIndex < FS_OPEN_MAX_COUNT; ++openIndex)
 	{
-		if (open_files[openIndex].fileDescript.firstIndex == 0)
+		if (open_files[openIndex].fileDescript == NULL)
 		{
-			open_files[openIndex].fileDescript = root_dir[fileIndex];
+			open_files[openIndex].fileDescript = &(root_dir[fileIndex]);
 			open_files[openIndex].offset = 0;
 			break;
 		}
@@ -280,7 +286,6 @@ int fs_open(const char *filename)
 
 	num_open_files++;
 
-	/* TODO: Phase 3 */
 	return openIndex;
 }
 
@@ -293,7 +298,6 @@ int fs_close(int fd)
 
 	num_open_files--;
 	
-	/* TODO: Phase 3 */
 	return 0;
 }
 
@@ -302,9 +306,8 @@ int fs_stat(int fd)
 	if (!get_valid_fd(fd))
 		return -1;
 
-	int size = open_files[fd].fileDescript.size;
+	int size = open_files[fd].fileDescript->size;
 
-	/* TODO: Phase 3 */
 	return size;
 }
 
@@ -313,7 +316,7 @@ int fs_lseek(int fd, size_t offset)
 	if (!get_valid_fd(fd))
 		return -1;
 
-	if (offset > open_files[fd].fileDescript.size)
+	if (offset > open_files[fd].fileDescript->size)
 		return -1;
 
 	open_files[fd].offset = offset;
@@ -327,35 +330,41 @@ int fs_write(int fd, void *buf, size_t count)
 	if (!get_valid_fd(fd))
 		return -1;
 
-	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
+	int needBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);	
+	int currBlocks = DIV_ROUND_UP(open_files[fd].fileDescript->size, BLOCK_SIZE);
 
-	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
-	int blockIndex = open_files[fd].fileDescript.firstIndex;
+	//char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * needBlocks);
+	char* prevBlock = (char*)malloc(BLOCK_SIZE * sizeof(char));
+	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
-	
-	if (blockIndex == 0xFFFF)
+
+	if (open_files[fd].fileDescript->size < count + open_files[fd].offset)
 	{
-		blockIndex = find_empty_fat();
-		open_files[fd].fileDescript.firstIndex = blockIndex;
+		int i = 0;
+		for (i = 0; i < currBlocks; ++i)
+			blockIndex = Fat[blockIndex];
+
+		for (i = currBlocks + 1; i < needBlocks; ++i)
+		{
+			Fat[blockIndex] = find_empty_fat();
+			blockIndex = Fat[blockIndex];			
+		}
+
 		Fat[blockIndex] = FAT_EOC;
+		open_files[fd].fileDescript->size = count;
 	}
 
-	else
+	while (blockOffset > BLOCK_SIZE)
 	{
-		while (blockOffset > BLOCK_SIZE)
-		{
-			blockIndex = Fat[blockIndex];
-			blockOffset -= BLOCK_SIZE;
-		}
+		blockIndex = Fat[blockIndex];
+		blockOffset -= BLOCK_SIZE;
 	}
 
 	blockIndex += super_block->startBlock;
 
-	memcpy(bounce + blockOffset, buf, count);
-	printf("%d %s", blockIndex, bounce);
-	block_write(blockIndex, bounce);
-
-	open_files[fd].fileDescript.size = count;
+	block_read(blockIndex, prevBlock);
+	memcpy(prevBlock + blockOffset, buf, BLOCK_SIZE - blockOffset);
+	block_write(blockIndex, prevBlock);
 
 	/* TODO: Phase 4 */
 	return count;
@@ -369,7 +378,7 @@ int fs_read(int fd, void *buf, size_t count)
 	int numBlocks = DIV_ROUND_UP(count, BLOCK_SIZE);
 
 	char* bounce = (char*)malloc(BLOCK_SIZE * sizeof(char) * numBlocks);
-	int blockIndex = open_files[fd].fileDescript.firstIndex;
+	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
 
 	while (blockOffset > BLOCK_SIZE)
@@ -377,7 +386,6 @@ int fs_read(int fd, void *buf, size_t count)
 		blockIndex = Fat[blockIndex];
 		blockOffset -= BLOCK_SIZE; 
 	}
-
 
 	int i = 0;
 	for (i = 0; i < numBlocks; ++i)
