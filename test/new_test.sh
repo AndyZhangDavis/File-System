@@ -40,9 +40,9 @@ else
 fi
 
 # REMOVE
-echo "\nTesting remove of newtest2 and resulting ls..."
+echo "\nTesting remove of newtest3 and resulting ls..."
 
-./test_fs.x rm disk.fs newtest2
+./test_fs.x rm disk.fs newtest3
 
 # get fs_info from reference lib
 ./fs_ref.x ls disk.fs >ref.stdout 2>ref.stderr
@@ -75,14 +75,14 @@ fi
 
 # STAT
 
-echo "\nTesting stat on newtest..."
-./test_fs.x stat disk.fs newtest
+echo "\nTesting stat on newtest2..."
+./test_fs.x stat disk.fs newtest2
 
 # get fs_info from reference lib
-./fs_ref.x stat disk.fs newtest >ref.stdout 2>ref.stderr
+./fs_ref.x stat disk.fs newtest2 >ref.stdout 2>ref.stderr
 
 # get fs_info from my lib
-./test_fs.x stat disk.fs newtest >lib.stdout 2>lib.stderr
+./test_fs.x stat disk.fs newtest2 >lib.stdout 2>lib.stderr
 
 # put output files into variables
 REF_STDOUT=$(cat ref.stdout)
@@ -143,13 +143,13 @@ fi
 
 # CAT
 
-echo "\nTesting cat on newtest [bytes > 4096]..."
+echo "\nTesting cat on newtest2 [bytes > 4096]..."
 
 # get fs_info from reference lib
-./fs_ref.x cat disk.fs newtest >ref.stdout 2>ref.stderr
+./fs_ref.x cat disk.fs newtest2 >ref.stdout 2>ref.stderr
 
 # get fs_info from my lib
-./test_fs.x cat disk.fs newtest >lib.stdout 2>lib.stderr
+./test_fs.x cat disk.fs newtest2 >lib.stdout 2>lib.stderr
 
 # put output files into variables
 REF_STDOUT=$(cat ref.stdout)
