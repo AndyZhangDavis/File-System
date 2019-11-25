@@ -108,6 +108,8 @@ essentially the same thing as the first block, except we only copied the
 remaining bytes to the bounce buffer before writing it back.
 
 # Testing 
+*Our tester file is test/new_test.sh*
+
 **We included all of the three newtest files that we tested on in order 
 for the shell script to run on files of various block sizes.**
 
