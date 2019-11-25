@@ -423,9 +423,6 @@ int fs_write(int fd, void *buf, size_t count)
 	int blockOffset = open_files[fd].offset;
 	int numBytesRemain = count;
 
-	//if (blockIndex == FAT_EOC)
-	//	blockIndex = find_empty_fat();
-
 	/* Allocate blocks necessary */
 	if (open_files[fd].fileDescript->size < count + open_files[fd].offset)
 	{
@@ -469,6 +466,8 @@ int fs_write(int fd, void *buf, size_t count)
 		block_write(blockIndex + super_block->startBlock, prevBlock);
 	}
 
+	open_files[fd].offset += count;
+
 	return count;
 }
 
@@ -501,6 +500,8 @@ int fs_read(int fd, void *buf, size_t count)
 
 	/* Copy bounce buffer to output buffer */
 	memcpy(buf, bounce + blockOffset, count);
+
+	open_files[fd].offset += strlen(buf);
 
 	/* Return total bytes read */
 	return strlen(buf);
