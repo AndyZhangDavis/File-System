@@ -1,4 +1,7 @@
-﻿# Phase 1
+﻿**We included all of the three newtest files that we tested on in order 
+for the shell script to run on files of various block sizes. These files are: newtest, newtest2, and newtest3.**
+
+# Phase 1
 ## Overview
 #### Struct
 We used a packed struct called superBlock to store all the data from the 
