@@ -97,6 +97,9 @@ void add_fat_blocks(int currBlocks, int needBlocks, int fatIndex)
 	for (i = 0; i < currBlocks; ++i)
 		fatIndex = Fat[fatIndex];
 	
+	if (needBlocks - currBlocks > 2)
+		needBlocks++;
+
 	/* Add extra fat blocks */
 	for (i = currBlocks + 1; i < needBlocks; ++i)
 	{
