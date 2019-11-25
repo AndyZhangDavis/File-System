@@ -32,15 +32,15 @@ typedef struct __attribute__((__packed__)) superBlock {
 	int8_t padding[4079];	
 } *Super;
 
-typedef struct __attribute__((__packed__)) rootDirectory {
+typedef struct __attribute__((__packed__)) file {
 	int8_t fileName[16];
 	int32_t size;
 	uint16_t firstIndex;	//Index of first data block
 	int8_t padding[10];
-} *Root;
+} *Directory;
 
 typedef struct fd {
-	Root fileDescript;
+	Directory fileDescript;
 	int offset;
 } *Fd;
 
@@ -50,7 +50,7 @@ typedef struct fd {
  */
 
 Super super_block;
-Root root_dir;
+Directory root_dir;
 Fd open_files;
 uint16_t* Fat;
 int num_open_files;
@@ -117,7 +117,7 @@ int fs_mount(const char *diskname)
 {
 	/* Initialize globals */
 	super_block = (Super)malloc(sizeof(struct superBlock));
-	root_dir = (Root)malloc(sizeof(int8_t) * BLOCK_SIZE);
+	root_dir = (Directory)malloc(sizeof(int8_t) * BLOCK_SIZE);
 	open_files = (Fd)malloc(sizeof(struct fd) * FS_OPEN_MAX_COUNT);
 
 	/* Open disk */
@@ -419,6 +419,9 @@ int fs_write(int fd, void *buf, size_t count)
 	int blockIndex = open_files[fd].fileDescript->firstIndex;
 	int blockOffset = open_files[fd].offset;
 	int numBytesRemain = count;
+
+	//if (blockIndex == FAT_EOC)
+	//	blockIndex = find_empty_fat();
 
 	/* Allocate blocks necessary */
 	if (open_files[fd].fileDescript->size < count + open_files[fd].offset)
