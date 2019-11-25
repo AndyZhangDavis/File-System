@@ -108,8 +108,8 @@ essentially the same thing as the first block, except we only copied the
 remaining bytes to the bounce buffer before writing it back.
 
 # Testing 
-**//We included all of the three newtest files that we tested on in order f
-or the shell script to effectively run on a file larger than 1 block.//**
+**We included all of the three newtest files that we tested on in order 
+for the shell script to run on files of various block sizes.**
 
 In order to test the entire program in segments, we implemented a shell 
 script that manipulates the disk and adds 4 different files to the file 
